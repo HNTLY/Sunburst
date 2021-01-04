@@ -34,6 +34,8 @@ Check to see if system is connected to an AD domain and retrive the domain name.
 Each string used by the software was embedded as a hash to disguise the string. These can be found [Here on FireEye's Github](https://github.com/fireeye/sunburst_countermeasures/blob/main/fnv1a_xor_hashes.txt)
 
 ## Splunk Detection and Protection
+### Lookup Tables
+
 Create lookup tables generated from the detected domains so far which can be found at the [FireEye Github](https://github.com/fireeye/sunburst_countermeasures) or [This Github Repo](https://github.com/rkovar/sunburstlookups)
 From these, you can create searches to find hosts that have communicated with these domains. An example search might be:
 
@@ -44,11 +46,38 @@ From these, you can create searches to find hosts that have communicated with th
 
 You can also identify IPs or hashes (again, the list can be found on Github)
 
+### Azure AD
+
 The attack may have targeted the Azure AD in an attempt to laterally move their privileges, either through Admin password or forged SAML tokens 
 If you had connected your Azure data with Splunk (using the Microsoft Azure add-on for Splunk), you can use it to identify the route the attack may have taken.
 
+### VPS
+
 The malware may have used VPS's using an IP local to the country of the victim (although this is not confirmed with every case).
 Use Splunk to review external to internal traffic (i.e malware VPS to internal network) and identify if any unknown IP's have accessed the internal system.
+
+### Tstat
+
+Often, quick searches are not enough and are unable to be scaled up enough, this is where `tstats` comes into play.
+Example searches:
+
+Find malicious domains in network resolution:
+
+`| tstats summariesonly=true earliest(_time) as earliest latest(_time) as latest count as total_conn values(DNS.query) as query from datamodel=Network_Resolution where
+    [| inputlookup sunburstDOMAIN_lookup
+    | rename Domain as DNS.query
+    | table DNS.query] OR DNS.query=*avsvmcloud.com by DNS.src DNS.vendor_product DNS.record_type DNS.message_type
+| sort earliest
+| eval earliest=strftime(earliest, "%c"), latest=strftime(latest, "%c")`
+
+Find malicious IP addresses in network traffic
+
+`| tstats summariesonly=true earliest(_time) as earliest latest(_time) as latest count as total_conn values(All_Traffic.dest) as dest from datamodel=Network_Traffic where
+    [| inputlookup sunburstIP_lookup
+    | rename IP as All_Traffic.dest
+    | table All_Traffic.dest] by All_Traffic.src All_Traffic.vendor_product
+| sort earliest
+| eval earliest=strftime(earliest, "%c"), latest=strftime(latest, "%c")`
 
 ## Elastic
 
