@@ -14,9 +14,9 @@ Once the software is deployed on a system, it is dormant for about 2 weeks (betw
 After the two weeks, it executes commands called "Jobs" that allow it to do a variety of actions such as: transfer files, execute files, system profiling, machine reboots and service disabling.
 The software will use obfuscated blocklists to identify AV tools and whether they're running as processes, services or drivers
 It attempts to resolve a subdomain of `avsvmcloud(.)com` with the format of `<ENCODED VICTIM HOSTNAME>.appsync-api.{eu,us}-{west,east}-{1,2}.avsvmcloud[.]com`
-The DNS response returns a CNAME record pointing toerds a C2 domain. This traffic mimics normal SolarWinds API communcations
+The DNS response returns a CNAME record pointing towards a C2 domain. This traffic mimics normal SolarWinds API communcations
 
-## More Technical Analysis
+## More Technical Analysis (INCOMPLETE)
 
 A troganised version of `SolarWinds.Orion.Core.BusinessLayer.dll` , a SolarWinds digitally signed plugin
 Communicates via HTTP to third party servers
@@ -32,9 +32,23 @@ Repurpose `appSettings`, specifically `ReportWatcherRetry` and `ReportWatcherPos
 Check to see if system is connected to an AD domain and retrive the domain name. If the name matches one of the following, it will exit: `swdev.local, emea.sales, pci.local, apac.lab, swdev.dmz, cork.lab, saas.swi, dmz.local, lab.local, dev.local, lab.rio, lab.brno, lab.na, test, solarwinds` . This may be because these are internal SolarWinds domains that the attackers wanted to avoid.
 
 Each string used by the software was embedded as a hash to disguise the string. These can be found [Here on FireEye's Github](https://github.com/fireeye/sunburst_countermeasures/blob/main/fnv1a_xor_hashes.txt)
- 
 
-## Splunk Detection
+## Splunk Detection and Protection
+Create lookup tables generated from the detected domains so far which can be found at the [FireEye Github](https://github.com/fireeye/sunburst_countermeasures) or [This Github Repo](https://github.com/rkovar/sunburstlookups)
+From these, you can create searches to find hosts that have communicated with these domains. An example search might be:
+
+`index=main sourcetype=stream:*
+| lookup sunburstDOMAIN_lookup Domain AS query
+| search isBad=TRUE
+| stats VALUES(query) AS "Sunburst" by src_ip`
+
+You can also identify IPs or hashes (again, the list can be found on Github)
+
+The attack may have targeted the Azure AD in an attempt to laterally move their privileges, either through Admin password or forged SAML tokens 
+If you had connected your Azure data with Splunk (using the Microsoft Azure add-on for Splunk), you can use it to identify the route the attack may have taken.
+
+The malware may have used VPS's using an IP local to the country of the victim (although this is not confirmed with every case).
+Use Splunk to review external to internal traffic (i.e malware VPS to internal network) and identify if any unknown IP's have accessed the internal system.
 
 ## Elastic
 
@@ -49,4 +63,6 @@ C2 | Command and Control
 FNV | Fowler-Noll-Vo
 IOC | Indicators of Compromise
 OIP | Orion Improvemnt Program
+SAML | Security Assertion Markup Language
 SIEM | Security Information and Event Management
+VPS | Virtual Private Server
