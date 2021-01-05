@@ -89,6 +89,7 @@ AD | Active Directory
 API | Application Programming Interface
 AV | Anti-Vrus
 C2 | Command and Control
+dll | Dynamic Linked Library
 FNV | Fowler-Noll-Vo
 IOC | Indicators of Compromise
 OIP | Orion Improvemnt Program
